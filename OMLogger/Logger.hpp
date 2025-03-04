@@ -16,6 +16,7 @@ namespace OM
         enum class ELevel : unsigned int
         {
             Info,
+            Validation,
             Debug,
             Warning,
             Error,
@@ -28,6 +29,7 @@ namespace OM
 #define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 
 #define LOG_INFO(logMessage) OM::Logger::DebugLog(__FILENAME__, __LINE__, __func__, logMessage, OM::Logger::ELevel::Info);
+#define LOG_VALIDATION(logMessage) OM::Logger::DebugLog(__FILENAME__, __LINE__, __func__, logMessage, OM::Logger::ELevel::Validation);
 #define LOG_DEBUG(logMessage) OM::Logger::DebugLog(__FILENAME__, __LINE__, __func__, logMessage, OM::Logger::ELevel::Debug);
 #define LOG_WARNING(logMessage) OM::Logger::DebugLog(__FILENAME__, __LINE__, __func__, logMessage, OM::Logger::ELevel::Warning);
 #define LOG_ERROR(logMessage) OM::Logger::DebugLog(__FILENAME__, __LINE__, __func__, logMessage, OM::Logger::ELevel::Error);
@@ -80,7 +82,17 @@ namespace OM
             case ELevel::Info:
             {
                 SetConsoleTextAttribute(handle, 11); // texte in blue
-                std::cout << "[Info]   ";
+                std::cout << "[Info]      ";
+                SetConsoleTextAttribute(handle, 15); // texte in white (default)
+                std::cout << logMessage << std::endl;
+                logMessageWithLogLevel = "[Info] " + logMessage + '\n';
+                break;
+            }
+
+            case ELevel::Validation:
+            {
+                SetConsoleTextAttribute(handle, 10); // texte in green
+                std::cout << "[Validation]";
                 SetConsoleTextAttribute(handle, 15); // texte in white (default)
                 std::cout << logMessage << std::endl;
                 logMessageWithLogLevel = "[Info] " + logMessage + '\n';
@@ -90,7 +102,7 @@ namespace OM
             case ELevel::Debug:
             {
                 SetConsoleTextAttribute(handle, 05); // texte in green
-                std::cout << "[Debug]  ";
+                std::cout << "[Debug]     ";
                 SetConsoleTextAttribute(handle, 15); // texte in white (default)
                 std::cout << logMessage << std::endl;
                 logMessageWithLogLevel = "[Debug] " + logMessage + '\n';
@@ -99,7 +111,7 @@ namespace OM
 
             case ELevel::Warning:
                 SetConsoleTextAttribute(handle, 14); // texte in yellow
-                std::cout << "[Warning]";
+                std::cout << "[Warning]   ";
                 SetConsoleTextAttribute(handle, 15); // texte in white (default)
                 std::cout << logMessage << std::endl;
                 logMessageWithLogLevel = "[Warning] " + logMessage + '\n';
@@ -109,7 +121,7 @@ namespace OM
                 SetConsoleTextAttribute(handle, 207); // background in red, texte in white
                 std::cout << "[Error]";
                 SetConsoleTextAttribute(handle, 15); // texte in white (default)
-                std::cout << "  " + logMessage << std::endl;
+                std::cout << "     " + logMessage << std::endl;
                 logMessageWithLogLevel = "[Error] " + logMessage + '\n';
                 break;
 

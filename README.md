@@ -25,7 +25,7 @@ OM::Logger::CloseFile();
 ```
 
 ### Logging
-Call macro ```LOG_INFO```, ```LOG_DEBUG```, ```LOG_WARNING``` or ```LOG_ERROR``` to write your log to the console and your file (if you've opened it before).<br>
+Call macro ```LOG_INFO```, ```LOG_VALIDATION```, ```LOG_DEBUG```, ```LOG_WARNING``` or ```LOG_ERROR``` to write your log to the console and your file (if you've opened it before).<br>
 The log message is preceded by the log level, the time, the file, the line and the function in which th log was called.
 ```cpp
 #include "OMLogger/Logger.hpp"
@@ -33,6 +33,7 @@ The log message is preceded by the log level, the time, the file, the line and t
 int main()
 {
 	LOG_INFO("info message");
+	LOG_Validation("validation message");
 	LOG_DEBUG("debug message");
 	LOG_WARNING("warning message");
 	LOG_ERROR("error message");
