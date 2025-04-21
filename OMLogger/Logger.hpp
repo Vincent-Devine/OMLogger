@@ -28,22 +28,24 @@ namespace OM::Logger
 	{
 		switch (verbosity)
 		{
-		case LogVerbosity::VerbosityDebug:		return "[DEBUG]   ";
-		case LogVerbosity::VerbosityInfo:		return "[INFO]    ";
-		case LogVerbosity::VerbosityWarning:	return "[WARNING] ";
-		case LogVerbosity::VerbosityError:		return "[ERROR]   ";
+		case LogVerbosity::VerbosityDebug:		return "[DEBUG]";
+		case LogVerbosity::VerbosityInfo:		return "[INFO]";
+		case LogVerbosity::VerbosityWarning:	return "[WARNING]";
+		case LogVerbosity::VerbosityError:		return "[ERROR]";
 		case LogVerbosity::VerbosityCritical:	return "[CRITICAL]";
-		default:								return "[UNKNOWN] ";
+		default:								return "[UNKNOWN]";
 		}
 	}
 
 	enum LogDisplaySettings : uint8_t
 	{
-		DisplayNone		= 0,
-		DisplayDate		= 1 << 0,
-		DisplayThread	= 1 << 1,
-		DisplayFileInfo	= 1 << 2,
-		DisplayAll		= DisplayDate | DisplayThread | DisplayFileInfo
+		DisplayNone			= 0,
+		DisplayDate			= 1 << 0,
+		DisplayThread		= 1 << 1,
+		DisplayFileInfo		= 1 << 2,
+		DisplayVerbosity	= 1 << 3,
+		DisplayTag			= 1 << 4,
+		DisplayAll = DisplayDate | DisplayThread | DisplayFileInfo | DisplayVerbosity | DisplayTag
 	};
 
 	enum LogTag
@@ -94,7 +96,7 @@ namespace OM::Logger
 
 		std::mutex m_mutex;
 		std::ofstream m_logFile;
-		uint8_t m_verbositys = LogVerbosity::VerbosityAll;
+		uint8_t m_verbosity = LogVerbosity::VerbosityAll;
 		uint8_t m_displaySettings = LogDisplaySettings::DisplayAll;
 
 		// Methods
@@ -110,6 +112,7 @@ namespace OM::Logger
 		{
 			CloseLogFile();
 			delete GetInstance();
+			s_instance = nullptr;
 		}
 
 		void OpenLogFile(const std::filesystem::path& path)
@@ -128,10 +131,10 @@ namespace OM::Logger
 
 		void Log(uint8_t verbosity, const char* file, int line, const char* function, const LogTag tag, const std::string& message)
 		{
-			if (!(m_verbositys & verbosity))
+			if (!(m_verbosity & verbosity))
 				return;
 
-			std::ostringstream out;
+			std::ostringstream logInfo;
 
 			if (m_displaySettings & LogDisplaySettings::DisplayDate)
 			{
@@ -139,37 +142,45 @@ namespace OM::Logger
 				auto timeTNow = std::chrono::system_clock::to_time_t(now);
 				std::tm localTime;
 				localtime_s(&localTime, &timeTNow);
-				out << '[' << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "] ";
+				logInfo << '[' << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "] ";
 			}
 
 			if(m_displaySettings & LogDisplaySettings::DisplayThread)
-				out << "[Thread ID " << std::this_thread::get_id() << "] ";
+				logInfo << "[Thread ID " << std::this_thread::get_id() << "] ";
 
 			if (m_displaySettings & LogDisplaySettings::DisplayFileInfo)
 			{
 				const char* filename = std::strrchr(file, '\\');
 				filename = filename ? filename + 1 : file;
-				out << '[' << filename << ':' << function << '@' << line << "] ";
+				logInfo << '[' << filename << ':' << function << '@' << line << "] ";
 			}
 
-			out << LogVerbosityToString(verbosity);
+			if(m_displaySettings & LogDisplaySettings::DisplayVerbosity)
+				logInfo << LogVerbosityToString(verbosity);
 
-			if (tag != LogTag::TagNone)
-				out << ' ' << LogTagToString(tag);
+			if (tag != LogTag::TagNone && m_displaySettings & LogDisplaySettings::DisplayTag)
+			{
+				if (m_displaySettings & LogDisplaySettings::DisplayVerbosity)
+					logInfo << ' ';
 
-			std::string logInfo = out.str(); // only colored part
+				 logInfo << LogTagToString(tag);
+			}
 
-			PrintConsole(logInfo, ' ' + message, verbosity);
-			WriteFile(logInfo + ' ' + message);
+			PrintConsole(logInfo.str(), ' ' + message, verbosity);
+			WriteFile(logInfo.str() + ' ' + message);
 		}
 
 		void SetDisplaySettings(uint8_t displaySettings) { m_displaySettings = displaySettings; }
-		void SetVerbosity(uint8_t verbositys) { m_verbositys = verbositys; }
+		void SetVerbosity(uint8_t verbositys) { m_verbosity = verbositys; }
 
-		void SetOMProfil()
+		void SetOMProfile()
 		{
-			m_displaySettings = LogDisplaySettings::DisplayDate | LogDisplaySettings::DisplayFileInfo;
-			m_verbositys = LogVerbosity::VerbosityAll;
+			m_displaySettings = LogDisplaySettings::DisplayDate
+				| LogDisplaySettings::DisplayFileInfo
+				| LogDisplaySettings::DisplayVerbosity
+				| LogDisplaySettings::DisplayTag;
+
+			m_verbosity = LogVerbosity::VerbosityAll;
 		}
 
 	private:
@@ -185,14 +196,24 @@ namespace OM::Logger
 			case LogVerbosity::VerbosityInfo:		color = 11; break;	// cyan
 			case LogVerbosity::VerbosityWarning:	color = 14; break;	// yellow
 			case LogVerbosity::VerbosityError:		color = 12; break;	// red
-			case LogVerbosity::VerbosityCritical:	color = 79; break;	// white on red background
+			case LogVerbosity::VerbosityCritical:	color = 79; break; 	// white on red background
 			default: break;
 			}
 
-			SetConsoleTextAttribute(handle, color);
-			std::cout << logInfo;
-			SetConsoleTextAttribute(handle, 7);
-			std::cout << message << std::endl;
+			if (verbosity == VerbosityError || verbosity == VerbosityCritical)
+			{
+				SetConsoleTextAttribute(handle, color);
+				std::cerr << logInfo;
+				SetConsoleTextAttribute(handle, 7);
+				std::cerr << message << std::endl;
+			}
+			else
+			{
+				SetConsoleTextAttribute(handle, color);
+				std::cout << logInfo;
+				SetConsoleTextAttribute(handle, 7);
+				std::cout << message << std::endl;
+			}
 		}
 
 		void WriteFile(const std::string& message)
