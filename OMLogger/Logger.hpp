@@ -13,25 +13,78 @@
 
 namespace OM::Logger
 {
-	enum LogLevel : uint8_t
+	enum LogVerbosity : uint8_t
 	{
-		None		= 0,
-		Debug		= 1 << 0,
-		Info		= 1 << 1,
-		Warning		= 1 << 2,
-		Error		= 1 << 3,
-		Critical	= 1 << 4,
-		All			= Debug | Info | Warning | Error | Critical
+		VerbosityNone		= 0,
+		VerbosityDebug		= 1 << 0,
+		VerbosityInfo		= 1 << 1,
+		VerbosityWarning	= 1 << 2,
+		VerbosityError		= 1 << 3,
+		VerbosityCritical	= 1 << 4,
+		VerbosityAll = VerbosityDebug | VerbosityInfo | VerbosityWarning | VerbosityError | VerbosityCritical
 	};
 
-	enum LogOutputSettings : uint8_t
+	const char* LogVerbosityToString(uint8_t verbosity)
 	{
-		ShowNone		= 0,
-		ShowDate		= 1 << 0,
-		ShowThread		= 1 << 1,
-		ShowFileInfo	= 1 << 2,
-		ShowAll			= ShowDate | ShowThread | ShowFileInfo
+		switch (verbosity)
+		{
+		case LogVerbosity::VerbosityDebug:		return "[DEBUG]   ";
+		case LogVerbosity::VerbosityInfo:		return "[INFO]    ";
+		case LogVerbosity::VerbosityWarning:	return "[WARNING] ";
+		case LogVerbosity::VerbosityError:		return "[ERROR]   ";
+		case LogVerbosity::VerbosityCritical:	return "[CRITICAL]";
+		default:								return "[UNKNOWN] ";
+		}
+	}
+
+	enum LogDisplaySettings : uint8_t
+	{
+		DisplayNone		= 0,
+		DisplayDate		= 1 << 0,
+		DisplayThread	= 1 << 1,
+		DisplayFileInfo	= 1 << 2,
+		DisplayAll		= DisplayDate | DisplayThread | DisplayFileInfo
 	};
+
+	enum LogTag
+	{
+		TagNone,
+		TagEngine,
+		TagCore,
+		TagRender,
+		TagInput,
+		TagPhysics,
+		TagAudio,
+		TagAnimation,
+		TagUI,
+		TagAI,
+		TagResource,
+		TagScripting,
+		TagTools,
+		TagScene,
+	};
+
+	const char* LogTagToString(LogTag tag)
+	{
+		switch (tag)
+		{
+		case LogTag::TagNone:		return "[NONE]";
+		case LogTag::TagEngine:		return "[ENGINE]";
+		case LogTag::TagCore:		return "[CORE]";
+		case LogTag::TagRender:		return "[RENDER]";
+		case LogTag::TagInput:		return "[INPUT]";
+		case LogTag::TagPhysics:	return "[PHYSICS]";
+		case LogTag::TagAudio:		return "[AUDIO] ";
+		case LogTag::TagAnimation:	return "[ANIMATION]";
+		case LogTag::TagUI:			return "[UI]";
+		case LogTag::TagAI:			return "[AI]";
+		case LogTag::TagResource:	return "[RESOURCE]";
+		case LogTag::TagScripting:	return "[SCRIPTING]";
+		case LogTag::TagTools:		return "[TOOLS]";
+		case LogTag::TagScene:		return "[SCENE]";
+		default:					return "[UNKNOWN]";
+		}
+	}
 
 	class Logger
 	{
@@ -41,8 +94,8 @@ namespace OM::Logger
 
 		std::mutex m_mutex;
 		std::ofstream m_logFile;
-		uint8_t m_level = LogLevel::All;
-		uint8_t m_outputSettings = LogOutputSettings::ShowAll;
+		uint8_t m_verbositys = LogVerbosity::VerbosityAll;
+		uint8_t m_displaySettings = LogDisplaySettings::DisplayAll;
 
 		// Methods
 	public:
@@ -51,6 +104,12 @@ namespace OM::Logger
 			if (!s_instance)
 				s_instance = new Logger();
 			return s_instance;
+		}
+
+		void Destroy()
+		{
+			CloseLogFile();
+			delete GetInstance();
 		}
 
 		void OpenLogFile(const std::filesystem::path& path)
@@ -67,14 +126,14 @@ namespace OM::Logger
 				m_logFile.close();
 		}
 
-		void Log(uint8_t level, const char* file, int line, const char* function, const std::string& message)
+		void Log(uint8_t verbosity, const char* file, int line, const char* function, const LogTag tag, const std::string& message)
 		{
-			if (!(m_level & level))
+			if (!(m_verbositys & verbosity))
 				return;
 
 			std::ostringstream out;
 
-			if (m_outputSettings & LogOutputSettings::ShowDate)
+			if (m_displaySettings & LogDisplaySettings::DisplayDate)
 			{
 				auto now = std::chrono::system_clock::now();
 				auto timeTNow = std::chrono::system_clock::to_time_t(now);
@@ -83,48 +142,50 @@ namespace OM::Logger
 				out << '[' << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "] ";
 			}
 
-			if(m_outputSettings & LogOutputSettings::ShowThread)
+			if(m_displaySettings & LogDisplaySettings::DisplayThread)
 				out << "[Thread ID " << std::this_thread::get_id() << "] ";
 
-			if (m_outputSettings & LogOutputSettings::ShowFileInfo)
+			if (m_displaySettings & LogDisplaySettings::DisplayFileInfo)
 			{
 				const char* filename = std::strrchr(file, '\\');
 				filename = filename ? filename + 1 : file;
 				out << '[' << filename << ':' << function << '@' << line << "] ";
 			}
 
-			out << LogLevelToString(level) << " ";
+			out << LogVerbosityToString(verbosity);
+
+			if (tag != LogTag::TagNone)
+				out << ' ' << LogTagToString(tag);
 
 			std::string logInfo = out.str(); // only colored part
 
-			PrintConsole(logInfo, message, level);
-			WriteFile(logInfo + message);
+			PrintConsole(logInfo, ' ' + message, verbosity);
+			WriteFile(logInfo + ' ' + message);
 		}
 
-		void SetOutputSettings(uint8_t outputSettings) { m_outputSettings = outputSettings; }
-		void SetLevel(uint8_t level) { m_level = level; }
+		void SetDisplaySettings(uint8_t displaySettings) { m_displaySettings = displaySettings; }
+		void SetVerbosity(uint8_t verbositys) { m_verbositys = verbositys; }
+
+		void SetOMProfil()
+		{
+			m_displaySettings = LogDisplaySettings::DisplayDate | LogDisplaySettings::DisplayFileInfo;
+			m_verbositys = LogVerbosity::VerbosityAll;
+		}
 
 	private:
-		Logger() = default;
-		~Logger()
-		{
-			CloseLogFile();
-			delete s_instance;
-		}
-
-		void PrintConsole(const std::string& logInfo, const std::string& message, const uint8_t level)
+		void PrintConsole(const std::string& logInfo, const std::string& message, const uint8_t verbosity)
 		{
 			static HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 			std::scoped_lock lock(m_mutex);
 
 			WORD color = 7; // default grey
-			switch (level)
+			switch (verbosity)
 			{
-			case LogLevel::Debug:	color = 13; break;	// purple
-			case LogLevel::Info:	color = 11; break;	// cyan
-			case LogLevel::Warning: color = 14; break;	// yellow
-			case LogLevel::Error:	color = 12; break;	// red
-			case LogLevel::Critical:color = 79; break;	// white on red background
+			case LogVerbosity::VerbosityDebug:		color = 13; break;	// purple
+			case LogVerbosity::VerbosityInfo:		color = 11; break;	// cyan
+			case LogVerbosity::VerbosityWarning:	color = 14; break;	// yellow
+			case LogVerbosity::VerbosityError:		color = 12; break;	// red
+			case LogVerbosity::VerbosityCritical:	color = 79; break;	// white on red background
 			default: break;
 			}
 
@@ -140,48 +201,21 @@ namespace OM::Logger
 			if (m_logFile.is_open())
 				m_logFile << message << '\n';
 		}
-
-		const char* LogLevelToString(uint8_t level)
-		{
-			switch (level)
-			{
-			case LogLevel::Debug: return "[DEBUG]   ";
-			case LogLevel::Info: return "[INFO]    ";
-			case LogLevel::Warning: return "[WARNING] ";
-			case LogLevel::Error: return "[ERROR]   ";
-			case LogLevel::Critical: return "[CRITICAL]";
-			default: return "[UNKNOWN] ";
-			}
-		}
 	};
 }
 
 // Print
-#define OM_LOG_DEBUG(message) OM::Logger::Logger::GetInstance()->Log(OM::Logger::LogLevel::Debug,		__FILE__, __LINE__, __func__, message);
-#define OM_LOG_INFO(message) OM::Logger::Logger::GetInstance()->Log(OM::Logger::LogLevel::Info,			__FILE__, __LINE__, __func__, message);
-#define OM_LOG_WARNING(message) OM::Logger::Logger::GetInstance()->Log(OM::Logger::LogLevel::Warning,	__FILE__, __LINE__, __func__, message);
-#define OM_LOG_ERROR(message) OM::Logger::Logger::GetInstance()->Log(OM::Logger::LogLevel::Error,		__FILE__, __LINE__, __func__, message);
-#define OM_LOG_CRITICAL(message) OM::Logger::Logger::GetInstance()->Log(OM::Logger::LogLevel::Critical,	__FILE__, __LINE__, __func__, message);
+#define OM_LOG_DEBUG(message)	OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityDebug,		__FILE__, __LINE__, __func__, OM::Logger::TagNone ,message);
+#define OM_LOG_INFO(message)	OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityInfo,		__FILE__, __LINE__, __func__, OM::Logger::TagNone ,message);
+#define OM_LOG_WARNING(message)	OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityWarning,	__FILE__, __LINE__, __func__, OM::Logger::TagNone ,message);
+#define OM_LOG_ERROR(message)	OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityError,		__FILE__, __LINE__, __func__, OM::Logger::TagNone ,message);
+#define OM_LOG_CRITICAL(message)OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityCritical,	__FILE__, __LINE__, __func__, OM::Logger::TagNone ,message);
 
-// Setup
-#define OM_LOG_OPEN_LOG_FILE(filePath) OM::Logger::Logger::GetInstance()->OpenLogFile(filePath);
-#define OM_LOG_CLOSE_LOG_FILE() OM::Logger::Logger::GetInstance()->CloseLogFile();
-#define OM_LOG_OUTPUT_LEVEL(level) OM::Logger::Logger::GetInstance()->SetLevel(level);
-#define OM_LOG_OUTUP_SETTING(flags) OM::Logger::Logger::GetInstance()->SetOutputSettings(flags);
-
-#define OM_LOG_SETTINGS_LEVEL_DEBUG		OM::Logger::LogLevel::Debug
-#define OM_LOG_SETTINGS_LEVEL_INFO		OM::Logger::LogLevel::Info
-#define OM_LOG_SETTINGS_LEVEL_WARNING	OM::Logger::LogLevel::Warning
-#define OM_LOG_SETTINGS_LEVEL_ERROR		OM::Logger::LogLevel::Error
-#define OM_LOG_SETTINGS_LEVEL_CRITICAL	OM::Logger::LogLevel::Critical
-#define OM_LOG_SETTINGS_LEVEL_NONE		OM::Logger::LogLevel::None
-#define OM_LOG_SETTINGS_LEVEL_ALL		OM::Logger::LogLevel::All
-
-#define OM_LOG_SETTINGS_SHOW_DATE		OM::Logger::LogOutputSettings::ShowDate
-#define OM_LOG_SETTINGS_SHOW_THREAD		OM::Logger::LogOutputSettings::ShowThread
-#define OM_LOG_SETTINGS_SHOW_FILE_INFO	OM::Logger::LogOutputSettings::ShowFileInfo
-#define OM_LOG_SETTINGS_SHOW_NONE		OM::Logger::LogOutputSettings::ShowNone
-#define OM_LOG_SETTINGS_SHOW_ALL		OM::Logger::LogOutputSettings::ShowAll
+#define OM_LOG_DEBUG_TAG(message, tag)		OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityDebug,		__FILE__, __LINE__, __func__, tag, message);
+#define OM_LOG_INFO_TAG(message, tag)		OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityInfo,		__FILE__, __LINE__, __func__, tag, message);
+#define OM_LOG_WARNING_TAG(message, tag)	OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityWarning,	__FILE__, __LINE__, __func__, tag, message);
+#define OM_LOG_ERROR_TAG(message, tag)		OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityError,		__FILE__, __LINE__, __func__, tag, message);
+#define OM_LOG_CRITICAL_TAG(message, tag)	OM::Logger::Logger::GetInstance()->Log(OM::Logger::VerbosityCritical,	__FILE__, __LINE__, __func__, tag, message);
 
 // Assertion
 #ifdef _DEBUG

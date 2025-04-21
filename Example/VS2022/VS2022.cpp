@@ -1,8 +1,8 @@
 #include "../../OMLogger/Logger.hpp"
 
-const unsigned int PERFORMANCE_TEST_ITERATIONS = 2;
+const unsigned int PERFORMANCE_TEST_ITERATIONS = 50000;
 
-double PerformanceTestv2()
+void PerformanceTest()
 {
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -13,53 +13,43 @@ double PerformanceTestv2()
 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed = end - start;
-	return elapsed.count();
+	OM_LOG_INFO(std::to_string(PERFORMANCE_TEST_ITERATIONS) + " iteractions in " + std::to_string(elapsed.count()) + " secondes");
 }
 
 int main()
 {
-	OM_LOG_OPEN_LOG_FILE("logfile.txt");
-	double timev2 = PerformanceTestv2();
+	OM::Logger::Logger* logger = OM::Logger::Logger::GetInstance();
+	logger->OpenLogFile("log.txt");
 
-	OM_LOG_DEBUG("debug");
-	OM_LOG_INFO("info");
-	OM_LOG_WARNING("warning");
-	OM_LOG_ERROR("error");
-	OM_LOG_CRITICAL("critical");
+	std::string loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut.";
 
-	OM_LOG_OUTUP_SETTING(OM_LOG_SETTINGS_SHOW_DATE);
-	OM_LOG_INFO("only date");
-	OM_LOG_OUTUP_SETTING(OM_LOG_SETTINGS_SHOW_DATE | OM_LOG_SETTINGS_SHOW_FILE_INFO);
-	OM_LOG_INFO("date + file info");
-	OM_LOG_OUTUP_SETTING(OM_LOG_SETTINGS_SHOW_DATE | OM_LOG_SETTINGS_SHOW_THREAD);
-	OM_LOG_INFO("date + thread");
+	logger->SetVerbosity(OM::Logger::VerbosityInfo);
+	logger->SetDisplaySettings(OM::Logger::DisplayNone);
+	PerformanceTest();
+	
+	logger->SetOMProfil();
 
-	OM_LOG_OUTUP_SETTING(OM_LOG_SETTINGS_SHOW_NONE);
-	OM_LOG_INFO("none");
+	OM_LOG_DEBUG(loremIpsum);
+	OM_LOG_INFO(loremIpsum);
+	OM_LOG_WARNING(loremIpsum);
+	OM_LOG_ERROR(loremIpsum);
+	OM_LOG_CRITICAL(loremIpsum);
 
-	OM_LOG_OUTUP_SETTING(OM_LOG_SETTINGS_SHOW_ALL);
-	OM_LOG_INFO("all");
+	OM_LOG_INFO_TAG(loremIpsum, OM::Logger::TagCore);
+	OM_LOG_DEBUG_TAG(loremIpsum, OM::Logger::TagEngine);
+	OM_LOG_WARNING_TAG(loremIpsum, OM::Logger::TagRender);
+	OM_LOG_ERROR_TAG(loremIpsum, OM::Logger::TagAnimation);
+	OM_LOG_CRITICAL_TAG(loremIpsum, OM::Logger::TagAI);
+	OM_LOG_INFO_TAG(loremIpsum, OM::Logger::TagScripting);
 
-	OM_LOG_OUTPUT_LEVEL(OM_LOG_SETTINGS_LEVEL_WARNING | OM_LOG_SETTINGS_LEVEL_INFO);
-	OM_LOG_INFO("info");
-	OM_LOG_WARNING("warning");
-	OM_LOG_ERROR("error");
-	OM_LOG_CRITICAL("critical");
-	OM_LOG_OUTPUT_LEVEL(OM_LOG_SETTINGS_LEVEL_NONE);
-	OM_LOG_INFO("info");
-	OM_LOG_WARNING("warning");
-	OM_LOG_ERROR("error");
-	OM_LOG_CRITICAL("critical");
-	OM_LOG_OUTPUT_LEVEL(OM_LOG_SETTINGS_LEVEL_ALL);
-	OM_LOG_INFO("info");
-	OM_LOG_WARNING("warning");
-	OM_LOG_ERROR("error");
-	OM_LOG_CRITICAL("critical");
+	OM_LOG_DEBUG(loremIpsum);
+	OM_LOG_INFO(loremIpsum);
+	OM_LOG_WARNING(loremIpsum);
+	OM_LOG_ERROR(loremIpsum);
+	OM_LOG_CRITICAL(loremIpsum);
 
-	OM_LOG_INFO("Execution time v2 for " + std::to_string(PERFORMANCE_TEST_ITERATIONS) + " iterations: " + std::to_string(timev2) + " seconds");
+	logger->CloseLogFile();
+	logger->Destroy();
 
-	OM_ASSERTION(1 + 1 == 2, "big brain");
-	// OM_ASSERTION(1 + 2 == 2, "aled les maths");
-
-	OM_LOG_CLOSE_LOG_FILE();
+	return 0;
 }
