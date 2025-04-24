@@ -24,7 +24,7 @@ namespace OM::Logger
 		VerbosityAll = VerbosityDebug | VerbosityInfo | VerbosityWarning | VerbosityError | VerbosityCritical
 	};
 
-	const char* LogVerbosityToString(uint8_t verbosity)
+	inline const char* LogVerbosityToString(uint8_t verbosity)
 	{
 		switch (verbosity)
 		{
@@ -66,7 +66,7 @@ namespace OM::Logger
 		TagScene,
 	};
 
-	const char* LogTagToString(LogTag tag)
+	inline const char* LogTagToString(LogTag tag)
 	{
 		switch (tag)
 		{

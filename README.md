@@ -1,7 +1,7 @@
 # OMLogger
 
 ![Header-Only](https://img.shields.io/badge/header--only-blue)
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.0.1-blue)
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-orange)
 ![Windows](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
